@@ -87,10 +87,11 @@ function HelpGuide() {
 interface Row {
   key: number;
   date: string;
-  dateEnd: string; // 빈 문자열이면 단일 날짜
+  dateEnd: string;
   amount: string;
   description: string;
   category: string;
+  unified: boolean; // 통일 체크 여부 (기본 true)
 }
 
 let rowKeySeq = 0;
@@ -101,6 +102,7 @@ const emptyRow = (): Row => ({
   amount: '',
   description: '',
   category: '',
+  unified: true,
 });
 
 const isRowFilled = (r: Row) => r.amount && r.category;
@@ -119,8 +121,6 @@ export default function TransactionForm({ onSaved }: Props) {
   const [incomeRows, setIncomeRows] = useState<Row[]>([emptyRow()]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
-  // 통일된 카테고리 Set (양쪽에 모두 노출)
-  const [unifiedCats, setUnifiedCats] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getSettings().then(setSettings);
@@ -144,14 +144,23 @@ export default function TransactionForm({ onSaved }: Props) {
   const getCategories = useCallback(
     (type: 'expense' | 'income') => {
       if (!settings) return [];
-      const own = type === 'expense' ? settings.categories.expense : settings.categories.income;
-      const other = type === 'expense' ? settings.categories.income : settings.categories.expense;
-      // 본인 카테고리 + 통일 체크된 상대방 카테고리
-      const fromOther = other.filter((c) => unifiedCats.has(c) && !own.includes(c));
-      return [...own, ...fromOther];
+      return type === 'expense' ? settings.categories.expense : settings.categories.income;
     },
-    [settings, unifiedCats]
+    [settings]
   );
+
+  // 전체 카테고리 통일: 드롭박스에서 선택하면 unified=true인 행의 카테고리를 일괄 변경
+  const handleUnifyDropdown = (type: 'expense' | 'income', selectedCategory: string) => {
+    if (!selectedCategory) return;
+    const setter = type === 'expense' ? setExpenseRows : setIncomeRows;
+    setter((prev) => prev.map((r) => r.unified ? { ...r, category: selectedCategory } : r));
+  };
+
+  // 개별 행 통일 체크박스 토글
+  const toggleRowUnified = (type: 'expense' | 'income', key: number) => {
+    const setter = type === 'expense' ? setExpenseRows : setIncomeRows;
+    setter((prev) => prev.map((r) => r.key === key ? { ...r, unified: !r.unified } : r));
+  };
 
   const updateRow = (type: 'expense' | 'income', key: number, field: keyof Row, value: string) => {
     const setter = type === 'expense' ? setExpenseRows : setIncomeRows;
@@ -198,35 +207,8 @@ export default function TransactionForm({ onSaved }: Props) {
     };
     await updateSettings(updated);
     setSettings({ ...settings, ...updated });
-    setUnifiedCats((prev) => { const next = new Set(prev); next.delete(category); return next; });
   };
 
-  // 개별 카테고리 통일 토글
-  const handleToggleUnify = (cat: string, checked: boolean) => {
-    setUnifiedCats((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(cat);
-      else next.delete(cat);
-      return next;
-    });
-  };
-
-  // 전체 통일 토글
-  const handleToggleAllUnify = (type: 'expense' | 'income', checked: boolean) => {
-    if (!settings) return;
-    const cats = type === 'expense' ? settings.categories.expense : settings.categories.income;
-    setUnifiedCats((prev) => {
-      const next = new Set(prev);
-      cats.forEach((c) => { if (checked) next.add(c); else next.delete(c); });
-      return next;
-    });
-  };
-
-  const isAllUnified = (type: 'expense' | 'income') => {
-    if (!settings) return false;
-    const cats = type === 'expense' ? settings.categories.expense : settings.categories.income;
-    return cats.length > 0 && cats.every((c) => unifiedCats.has(c));
-  };
 
   const filledExpense = expenseRows.filter((r) => isRowFilled(r));
   const filledIncome = incomeRows.filter((r) => isRowFilled(r));
@@ -359,12 +341,15 @@ export default function TransactionForm({ onSaved }: Props) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={isAllUnified(type)}
-                onChange={(e) => handleToggleAllUnify(type, e.target.checked)}
-                className="rounded accent-toss-blue w-3.5 h-3.5" />
-              <span className="text-xs text-toss-gray-400">전체 카테고리 통일</span>
-            </label>
+            <span className="text-xs text-toss-gray-400">전체 카테고리</span>
+            <select
+              value=""
+              onChange={(e) => { handleUnifyDropdown(type, e.target.value); e.target.value = ''; }}
+              className="!text-xs !py-1 !px-2 !rounded-lg !border-toss-gray-200 w-36"
+            >
+              <option value="">선택하면 일괄 적용</option>
+              {getCategories(type).map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
 
@@ -422,13 +407,12 @@ export default function TransactionForm({ onSaved }: Props) {
                 onPaste={(e) => handlePaste(type, e, 'category', row.key)}
               />
 
-              {/* 통일 */}
+              {/* 통일 체크 */}
               <div className="flex items-center justify-center">
-                {row.category ? (
-                  <input type="checkbox" checked={unifiedCats.has(row.category)}
-                    onChange={(e) => handleToggleUnify(row.category, e.target.checked)}
-                    className="rounded accent-toss-blue cursor-pointer w-4 h-4" />
-                ) : <span className="w-4" />}
+                <input type="checkbox" checked={row.unified}
+                  onChange={() => toggleRowUnified(type, row.key)}
+                  className="rounded accent-toss-blue cursor-pointer w-4 h-4"
+                  title={row.unified ? '전체 카테고리 적용 대상' : '전체 카테고리 적용 제외'} />
               </div>
 
               {/* 삭제 */}
