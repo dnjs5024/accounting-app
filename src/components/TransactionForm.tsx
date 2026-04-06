@@ -5,6 +5,7 @@ import type { AppSettings } from '../types';
 import OcrUploader from './OcrUploader';
 import ExcelImporter from './ExcelImporter';
 import CategoryCombobox from './CategoryCombobox';
+import DatePicker from './DatePicker';
 import { parsePastedText, type ColumnType } from '../lib/paste-parser';
 
 function HelpGuide() {
@@ -338,24 +339,25 @@ export default function TransactionForm({ onSaved }: Props) {
             <div key={row.key} className={`group ${idx % 2 === 1 ? 'bg-toss-gray-50/30' : ''}`}>
               <div className="grid grid-cols-[130px_100px_1fr_140px_28px_28px] gap-1.5 px-4 py-1.5 items-center">
                 {/* 날짜 */}
-                <div className="flex items-center gap-0.5">
-                  <input type="date" value={row.date} onChange={(e) => updateRow(type, row.key, 'date', e.target.value)}
-                    onPaste={(e) => handlePaste(type, e, 'date', row.key)}
-                    className="!text-xs !py-1.5 !px-1.5 !rounded-lg w-full" />
-                  <button type="button" onClick={() => updateRow(type, row.key, 'dateEnd', row.dateEnd ? '' : row.date)}
-                    className={`shrink-0 text-xs font-bold px-0.5 transition-colors ${row.dateEnd ? 'text-toss-blue' : 'text-toss-gray-300 hover:text-toss-blue'}`}
-                    title="날짜 범위">~</button>
-                </div>
+                <DatePicker
+                  value={row.date}
+                  valueEnd={row.dateEnd}
+                  onChange={(start, end) => {
+                    updateRow(type, row.key, 'date', start);
+                    updateRow(type, row.key, 'dateEnd', end);
+                  }}
+                  onPaste={(e) => handlePaste(type, e, 'date', row.key)}
+                />
 
                 {/* 금액 */}
                 <input type="number" value={row.amount} onChange={(e) => updateRow(type, row.key, 'amount', e.target.value)}
                   onPaste={(e) => handlePaste(type, e, 'amount', row.key)}
-                  placeholder="금액" className="!text-xs !py-1.5 !px-1.5 !rounded-lg text-right !font-semibold w-full" min="1" />
+                  placeholder="금액" className="!text-xs !py-1.5 !px-1.5 !rounded-lg w-full placeholder:text-toss-gray-300 placeholder:font-normal" min="1" />
 
                 {/* 설명 */}
                 <input type="text" value={row.description} onChange={(e) => updateRow(type, row.key, 'description', e.target.value)}
                   onPaste={(e) => handlePaste(type, e, 'description', row.key)}
-                  placeholder="선택" className="!text-xs !py-1.5 !px-1.5 !rounded-lg w-full" />
+                  placeholder="선택" className="!text-xs !py-1.5 !px-1.5 !rounded-lg w-full placeholder:text-toss-gray-300 placeholder:font-normal" />
 
                 {/* 카테고리 */}
                 <CategoryCombobox
@@ -379,15 +381,6 @@ export default function TransactionForm({ onSaved }: Props) {
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3L9 9M9 3L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </button>
               </div>
-
-              {/* 종료일: ~ 활성화 시 아래에 표시 */}
-              {row.dateEnd && (
-                <div className="px-4 pb-1.5 flex items-center gap-1.5">
-                  <span className="text-[10px] text-toss-gray-400 w-8">~ 종료</span>
-                  <input type="date" value={row.dateEnd} onChange={(e) => updateRow(type, row.key, 'dateEnd', e.target.value)}
-                    className="!text-xs !py-1 !px-1.5 !rounded-lg w-[130px]" />
-                </div>
-              )}
             </div>
           ))}
         </div>

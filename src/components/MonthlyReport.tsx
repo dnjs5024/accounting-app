@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getSettings } from '../lib/db';
+import { db, getSettings, updateSettings } from '../lib/db';
 import { useTransactions, updateTransaction } from '../hooks/useTransactions';
 import { generateMonthlyExcel, generateFullExcel, downloadExcel } from '../lib/excel';
 import { formatCurrency, getMonthLabel } from '../lib/utils';
@@ -98,8 +98,49 @@ export default function Report() {
     ...Object.keys(plans).filter((k) => isIncomeCategory(k)),
   ])];
 
+  const [editingCat, setEditingCat] = useState<string | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+
   const handlePlanChange = (category: string, value: number) => {
     setPlans((prev) => ({ ...prev, [category]: value }));
+  };
+
+  const handleCatRename = (oldName: string) => {
+    setEditingCat(oldName);
+    setEditCatName(oldName);
+  };
+
+  const handleCatRenameSave = async () => {
+    if (!editingCat || !editCatName.trim() || editCatName === editingCat) {
+      setEditingCat(null);
+      return;
+    }
+    // plans 키 변경
+    setPlans((prev) => {
+      const next = { ...prev };
+      if (next[editingCat]) {
+        next[editCatName.trim()] = next[editingCat];
+        delete next[editingCat];
+      }
+      return next;
+    });
+    // 설정 카테고리 변경
+    if (settings) {
+      const updated = {
+        categories: {
+          expense: settings.categories.expense.map((c) => c === editingCat ? editCatName.trim() : c),
+          income: settings.categories.income.map((c) => c === editingCat ? editCatName.trim() : c),
+        },
+      };
+      await updateSettings(updated);
+      setSettings({ ...settings, ...updated });
+    }
+    // 거래 데이터의 카테고리도 일괄 변경
+    const txToUpdate = allTransactions.filter((t) => t.category === editingCat);
+    for (const tx of txToUpdate) {
+      await updateTransaction(tx.id, { category: editCatName.trim() });
+    }
+    setEditingCat(null);
   };
 
   const handlePlanPaste = (categories: string[], startIdx: number, e: React.ClipboardEvent) => {
@@ -385,7 +426,16 @@ export default function Report() {
                 const diff = plan - actual;
                 return (
                   <tr key={cat} className="border-t border-gray-100">
-                    <td className="px-4 py-2">{cat}</td>
+                    <td className="px-4 py-2">
+                      {editingCat === cat ? (
+                        <input type="text" value={editCatName} onChange={(e) => setEditCatName(e.target.value)}
+                          onBlur={handleCatRenameSave}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleCatRenameSave(); if (e.key === 'Escape') setEditingCat(null); }}
+                          className="!text-xs !py-0.5 !px-1 !rounded w-full" autoFocus />
+                      ) : (
+                        <span className="cursor-pointer hover:text-toss-blue transition-colors" onClick={() => handleCatRename(cat)}>{cat}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-right">
                       <input type="number" value={plan || ''} onChange={(e) => handlePlanChange(cat, parseInt(e.target.value) || 0)}
                         onPaste={(e) => handlePlanPaste(allExpenseCategories, idx, e)}
@@ -426,7 +476,16 @@ export default function Report() {
                 const diff = actual - plan;
                 return (
                   <tr key={cat} className="border-t border-gray-100">
-                    <td className="px-4 py-2">{cat}</td>
+                    <td className="px-4 py-2">
+                      {editingCat === cat ? (
+                        <input type="text" value={editCatName} onChange={(e) => setEditCatName(e.target.value)}
+                          onBlur={handleCatRenameSave}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleCatRenameSave(); if (e.key === 'Escape') setEditingCat(null); }}
+                          className="!text-xs !py-0.5 !px-1 !rounded w-full" autoFocus />
+                      ) : (
+                        <span className="cursor-pointer hover:text-toss-blue transition-colors" onClick={() => handleCatRename(cat)}>{cat}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-right">
                       <input type="number" value={plan || ''} onChange={(e) => handlePlanChange(cat, parseInt(e.target.value) || 0)}
                         onPaste={(e) => handlePlanPaste(allIncomeCategories, idx, e)}
