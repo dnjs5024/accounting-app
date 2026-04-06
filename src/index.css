@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-toss-blue: #3182f6;
+  --color-toss-blue-light: #e8f3ff;
+  --color-toss-blue-dark: #1b64da;
+  --color-toss-red: #f04452;
+  --color-toss-red-light: #fff0f1;
+  --color-toss-green: #00c853;
+  --color-toss-green-light: #e8faf0;
+  --color-toss-gray-50: #f9fafb;
+  --color-toss-gray-100: #f2f4f6;
+  --color-toss-gray-200: #e5e8eb;
+  --color-toss-gray-300: #d1d6db;
+  --color-toss-gray-400: #b0b8c1;
+  --color-toss-gray-500: #8b95a1;
+  --color-toss-gray-600: #6b7684;
+  --color-toss-gray-700: #4e5968;
+  --color-toss-gray-800: #333d4b;
+  --color-toss-gray-900: #191f28;
+}
+
+html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--color-toss-gray-50);
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--color-toss-gray-300); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 인풋 기본 스타일 */
+input[type="date"], input[type="number"], input[type="text"], input[type="password"], input[type="month"], select {
+  font-size: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-toss-gray-200);
+  padding: 8px 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  background: white;
+}
+input:focus, select:focus {
+  border-color: var(--color-toss-blue);
+  box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.1);
+}
